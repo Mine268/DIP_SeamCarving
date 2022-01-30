@@ -5,6 +5,7 @@
 #pragma once
 
 #include "RGBPixel.h"
+#include <cfloat>
 #include <string>
 #include <vector>
 
@@ -14,16 +15,16 @@ using uchar = unsigned char;
  * @brief Structure that holds two float, for implementation of dynamic programming.
  */
 struct ST_TWO_FLOAT {
-    float ver, hor;
-    std::size_t prev_i, prev_j;
+    float ver{FLT_MAX}, hor{FLT_MAX};
+    std::size_t prev_i{static_cast<size_t>(-1)}, prev_j{static_cast<size_t>(-1)};
 };
 
 /**
  * @brief The path that consisted of connected pixel.
  */
 struct Seam_Path {
-    std::vector<PixelPos> path; // The pixels in the path
-    float energy; // The energy of the path
+    std::vector<PixelPos> path{}; // The pixels in the path
+    float energy{FLT_MAX}; // The energy of the path
 };
 
 /**

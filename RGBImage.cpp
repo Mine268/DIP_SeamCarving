@@ -81,11 +81,11 @@ Seam_Path RGBImage::combVertical() {
     }
     // DP: Iterate through the energy map
     for (std::size_t i = 1; i < height; ++i) {
-        float tmp_min = FLT_MAX;
-        std::size_t tmp_prev = -1;
         for (std::size_t j = 0; j < width; ++j) {
+            float tmp_min = FLT_MAX;
+            std::size_t tmp_prev = -1;
             for (int d = -1; d <= 1; ++d) {
-                if (((int) j) + d >= 0 && ((int) j) + d < width
+                if (static_cast<int>(j) + d >= 0 && static_cast<int>(j) + d < width
                     && tmp_min > evaluateEnergyAt(i, j) + atEnergyMap(i - 1, j + d).ver) {
                     tmp_min = evaluateEnergyAt(i, j) + atEnergyMap(i - 1, j + d).ver;
                     tmp_prev = j + d;
@@ -98,7 +98,7 @@ Seam_Path RGBImage::combVertical() {
     // DP: Backwards search to construct the optimal path
     float goal_path_energy = FLT_MAX;
     std::size_t goal_path_j = -1;
-    Seam_Path ret;
+    Seam_Path ret{};
     for (std::size_t j = 0; j < width; ++j) {
         if (atEnergyMap(height - 1, j).ver < goal_path_energy) {
             goal_path_energy = atEnergyMap(height - 1, j).ver;
@@ -106,15 +106,45 @@ Seam_Path RGBImage::combVertical() {
         }
     }
     ret.energy = goal_path_energy;
-    for (std::size_t i = height - 1; i >= 0; --i) {
-        ret.path.push_back({i, goal_path_j});
-        goal_path_j = atEnergyMap(i, goal_path_j).prev_j;
+    for (std::size_t i = 0; i < height; ++i) {
+        ret.path.push_back({height - i - 1, goal_path_j});
+        goal_path_j = atEnergyMap(height - i - 1, goal_path_j).prev_j;
     }
     return ret;
 }
 
 Seam_Path RGBImage::combHorizontal() {
     for (std::size_t i = 0; i < height; ++i) {
-        atEnergyMap(i, 0).ver = evaluateEnergyAt(i, 0);
+        atEnergyMap(i, 0).hor = evaluateEnergyAt(i, 0);
     }
+    for (std::size_t j = 1; j < width; ++j) {
+        for (std::size_t i = 0; i < height; ++i) {
+            float tmp_min = FLT_MAX;
+            std::size_t tmp_prev = -1;
+            for (int d = -1; d <= 1; ++d) {
+                if (static_cast<int>(i) + d >= 0 && static_cast<int>(i) + d < height
+                    && tmp_min > evaluateEnergyAt(i, j) + atEnergyMap(i + d, j - 1).hor) {
+                    tmp_min = evaluateEnergyAt(i, j) + atEnergyMap(i + d, j - 1).hor;
+                    tmp_prev = i + d;
+                }
+            }
+            atEnergyMap(i, j).hor = tmp_min;
+            atEnergyMap(i, j).prev_i = tmp_prev;
+        }
+    }
+    float goal_path_energy = FLT_MAX;
+    std::size_t goal_path_i = -1;
+    Seam_Path ret{};
+    for (std::size_t i = 0; i < height; ++i) {
+        if (atEnergyMap(i, width - 1).hor < goal_path_energy) {
+            goal_path_energy = atEnergyMap(i, width - 1).hor;
+            goal_path_i = i;
+        }
+    }
+    ret.energy = goal_path_energy;
+    for (std::size_t j = 0; j < width; ++j) {
+        ret.path.push_back({goal_path_i, width - j - 1});
+        goal_path_i = atEnergyMap(goal_path_i, width - j - 1).prev_i;
+    }
+    return ret;
 }
