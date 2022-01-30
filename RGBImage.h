@@ -32,6 +32,9 @@ struct Seam_Path {
  * _WARN_: No out-of-bound error is checked in the code.
  */
 class RGBImage {
+#ifdef SEAM_CARVING_DEBUG
+    friend int main();
+#endif
 private:
     ST_TWO_FLOAT *energyMap; // Energy map for convenience of evaluating minimum energy path.
 
@@ -41,7 +44,26 @@ private:
      * @param j Column(Horizontal) index.
      * @return Cumulated energy stored at point(i,j).
      */
-    ST_TWO_FLOAT & atEnergyMap(std::size_t i, std::size_t j);
+    ST_TWO_FLOAT & atEnergyMap(std::size_t i, std::size_t j) const;
+
+    /**
+     * @brief Get the offset of pixel in the "framebuffer".
+     * @param pos Position in form of (i,j).
+     * @return The offset in the "framebuffer".
+     */
+    std::size_t getOffset(const PixelPos& pos) const;
+
+    /**
+     * @brief Delete the given seam-path, shifting all the pixels right of it left.
+     * @param seamPath Seam path.
+     */
+    void collapseVerticalSeam(const Seam_Path & seamPath);
+
+    /**
+     * @brief Delete the given seam-path, shifting all the pixels down of it above.
+     * @param seamPath Seam path.
+     */
+    void collapseHorizontalSeam(const Seam_Path & seamPath);
 
 public:
     std::size_t height{0}, width{0}, channel{0}; // height & width of the image.
@@ -58,7 +80,7 @@ public:
      * @param j Column(Horizontal) index.
      * @return The pixel at point (i,j).
      */
-    virtual RGBPixel & at(std::size_t i, std::size_t j);
+    virtual RGBPixel & at(std::size_t i, std::size_t j) const;
 
     /**
      * @brief Write the image to the path. PNG format.
@@ -85,4 +107,11 @@ public:
       * @return Found path.
       */
      Seam_Path combHorizontal();
+
+     /**
+      * @brief Implementing seam-carving algorithm to rescale the image to given aspect ratio.
+      * @param newHeight New height.
+      * @param newWidth New width.
+      */
+     void rescale(std::size_t newHeight, std::size_t newWidth);
 };

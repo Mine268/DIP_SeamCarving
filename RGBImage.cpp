@@ -57,11 +57,11 @@ void RGBImage::write(const std::string &path) {
     delete[] raw_data;
 }
 
-ST_TWO_FLOAT & RGBImage::atEnergyMap(std::size_t i, std::size_t j) {
+ST_TWO_FLOAT & RGBImage::atEnergyMap(std::size_t i, std::size_t j) const {
     return energyMap[i * width + j];
 }
 
-RGBPixel & RGBImage::at(std::size_t i, std::size_t j) {
+RGBPixel & RGBImage::at(std::size_t i, std::size_t j) const {
     return framebuffer[i * width + j];
 }
 
@@ -147,4 +147,47 @@ Seam_Path RGBImage::combHorizontal() {
         goal_path_i = atEnergyMap(goal_path_i, width - j - 1).prev_i;
     }
     return ret;
+}
+
+std::size_t RGBImage::getOffset(const PixelPos& pos) const {
+    return pos.i * width + pos.j;
+}
+
+void RGBImage::rescale(std::size_t newHeight, std::size_t newWidth) {
+    // TODO
+}
+
+// The following two functions both run with the complexity of O(mn), where "m" and "n" is the height and width of the
+// image.
+
+void RGBImage::collapseVerticalSeam(const Seam_Path& seamPath) {
+    // "seamPath" should be a vertical seam from top to bottom.
+    // Since "seamPath" vector is lined in the descent order of member ".i", so we can iterate through "seamPath" from
+    // tail to head for efficient move.
+    // Type "int" used here.
+    for (auto i = static_cast<int>(height) - 1; i >= 0; --i) {
+        auto range_start = getOffset(seamPath.path[i]) + 1;
+        auto range_end = i ? getOffset(seamPath.path[i - 1]) : height * width;
+        for (auto k = range_start; k < range_end; ++k) {
+            framebuffer[k - (height - i)] = framebuffer[k];
+        }
+    }
+    --width;
+}
+
+void RGBImage::collapseHorizontalSeam(const Seam_Path& seamPath) {
+    // "seamPath" should be a vertical seam from left to right.
+    /* Because the image is stored left to right then top to down, so the strategy applied to collapse the vertical seam
+        doesn't work in this case. We can only iterate through each pixel in the image with the same order and process
+        every one of then correspondingly.
+        If we want to use that strategy, the code would be quite complex. For convenience consideration, plain iteration
+        is implemented. */
+    for (std::size_t i = 0; i < height; ++i) {
+        for (std::size_t j = 0; j < width; ++j) {
+            if (i > seamPath.path[width - j - 1].i) {
+                at(i - 1, j) = at(i, j);
+            }
+        }
+    }
+    --height;
 }
