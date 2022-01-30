@@ -162,9 +162,9 @@ void RGBImage::rescale(std::size_t newHeight, std::size_t newWidth) {
 
 void RGBImage::collapseVerticalSeam(const Seam_Path& seamPath) {
     // "seamPath" should be a vertical seam from top to bottom.
-    // Since "seamPath" vector is lined in the descent order of member ".i", so we can iterate through "seamPath" from
-    // tail to head for efficient move.
-    // Type "int" used here.
+    /* Since "seamPath" vector is lined in the descent order of member ".i", so we can iterate through "seamPath" from
+     * tail to head for efficient move.
+     * Type "int" used here. */
     for (auto i = static_cast<int>(height) - 1; i >= 0; --i) {
         auto range_start = getOffset(seamPath.path[i]) + 1;
         auto range_end = i ? getOffset(seamPath.path[i - 1]) : height * width;
@@ -178,10 +178,10 @@ void RGBImage::collapseVerticalSeam(const Seam_Path& seamPath) {
 void RGBImage::collapseHorizontalSeam(const Seam_Path& seamPath) {
     // "seamPath" should be a vertical seam from left to right.
     /* Because the image is stored left to right then top to down, so the strategy applied to collapse the vertical seam
-        doesn't work in this case. We can only iterate through each pixel in the image with the same order and process
-        every one of then correspondingly.
-        If we want to use that strategy, the code would be quite complex. For convenience consideration, plain iteration
-        is implemented. */
+     * doesn't work in this case. We can only iterate through each pixel in the image with the same order and process
+     * every one of then correspondingly.
+     * If we want to use that strategy, the code would be quite complex. For convenience consideration, plain iteration
+     * is implemented. */
     for (std::size_t i = 0; i < height; ++i) {
         for (std::size_t j = 0; j < width; ++j) {
             if (i > seamPath.path[width - j - 1].i) {

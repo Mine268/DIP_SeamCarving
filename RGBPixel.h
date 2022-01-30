@@ -14,7 +14,9 @@ struct RGBPixel {
      * @return The grey value for this color, range in [0,1].
      */
     float grey() const {
-        return (0.299f * red + 0.587f * green + 0.114f * blue) / 255.f;
+        return (0.299f * static_cast<float>(red) +
+                0.587f * static_cast<float>(green) +
+                0.114f * static_cast<float>(blue)) / 255.f;
     }
 };
 
