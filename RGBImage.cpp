@@ -9,6 +9,7 @@
 #include "stb/stb_image.h"
 #include <iostream>
 #include <cfloat>
+#include <algorithm>
 
 RGBImage::RGBImage(std::size_t h, std::size_t w) :
 height(h), width(w), channel(0), framebuffer(new RGBPixel[h * w]), energyMap(new ST_TWO_FLOAT[h * w]) {}
@@ -86,12 +87,10 @@ std::vector<Seam_Path> RGBImage::combVertical(std::size_t capacity) {
 Seam_Path RGBImage::combVertical_exclusive(const std::vector<Seam_Path> &ex) {
     // Check if position (i,j) collide with the paths in ex
     static auto checker = [&] (std::size_t vi, std::size_t vj) -> bool {
-        for (auto path : ex) {
-            // Pixel in "path.path" are of the order of descending of i-index.
-            if (path.path[height - vi - 1].j == vj)
-                return true;
-        }
-        return false;
+        // Pixel in "path.path" are of the order of descending of i-index.
+        return std::any_of(ex.begin(), ex.end(), [&] (const auto & ele) {
+            return ele.path[height - vi - 1].j == vj;
+        });
     };
     // DP: Initialize the starting state
     for (std::size_t j = 0; j < width; ++j) {
@@ -145,11 +144,9 @@ std::vector<Seam_Path> RGBImage::combHorizontal(std::size_t capacity) {
 
 Seam_Path RGBImage::combHorizontal_exclusive(const std::vector<Seam_Path> &ex) {
     static auto checker = [&] (std::size_t vi, std::size_t vj) -> bool {
-        for (auto path : ex) {
-            if (path.path[width - vj - 1].i == vi)
-                return true;
-        }
-        return false;
+        return std::any_of(ex.begin(), ex.end(), [&] (const auto &ele) {
+            return ele.path[width - vj - 1].i == vi;
+        });
     };
     for (std::size_t i = 0; i < height; ++i) {
         atEnergyMap(i, 0).hor = evaluateEnergyAt(i, 0);
@@ -194,6 +191,10 @@ std::size_t RGBImage::getOffset(const PixelPos& pos) const {
     return pos.i * width + pos.j;
 }
 
+std::size_t RGBImage::getOffset(std::size_t i, std::size_t j) const {
+    return i * width + j;
+}
+
 void RGBImage::rescale(std::size_t newHeight, std::size_t newWidth) {
     // TODO
 }
@@ -231,4 +232,60 @@ void RGBImage::collapseHorizontalSeam(const Seam_Path& seamPath) {
         }
     }
     --height;
+}
+
+void RGBImage::repeatVerticalSeam(const std::vector<Seam_Path> &seamPath) {
+    // Check if position (i,j) collide with the paths in seamPath
+    static auto checker = [&] (std::size_t vi, std::size_t vj) -> bool {
+        return std::any_of(seamPath.begin(), seamPath.end(), [&] (const auto &ele) {
+            return ele.path[height - vi - 1].j == vj;
+        });
+    };
+    // Reallocate the space for enlarge
+    auto newHeight = height, newWidth = seamPath.size() + width;
+    auto newBuffer = new RGBPixel[newHeight * newWidth];
+
+    // The offset each pixel of each row should move. At the end of each row, this value must be seamPath.size().
+    std::size_t pixelOffset = -1;
+    for (std::size_t vi = 0; vi < height; ++vi) {
+        pixelOffset = seamPath.size();
+        for (std::size_t vj = 0; vj < width; ++vj) {
+            auto i = height - vi - 1, j = width - vj - 1;
+            // Do the offset
+            newBuffer[getOffset(i, j) + i * seamPath.size() + pixelOffset] = framebuffer[getOffset(i, j)];
+            if (checker(i, j)) {
+                --pixelOffset;
+                newBuffer[getOffset(i, j) + i * seamPath.size() + pixelOffset] = framebuffer[getOffset(i, j)];
+            }
+        }
+    }
+    delete[] framebuffer;
+    framebuffer = newBuffer;
+
+    height = newHeight;
+    width = newWidth;
+}
+
+void RGBImage::repeatHorizontalSeam(std::vector<Seam_Path> &seamPath) {
+    transpose();
+    for (auto& path : seamPath) {
+        for (auto& pixel : path.path) {
+            std::swap(pixel.i, pixel.j);
+        }
+    }
+    repeatVerticalSeam(seamPath);
+    transpose();
+}
+
+void RGBImage::transpose() {
+    auto newBuffer = new RGBPixel[height * width];
+    for (std::size_t i = 0; i < height; ++i) {
+        for (std::size_t j = 0; j < width; ++j) {
+            newBuffer[j * height + i] = framebuffer[i * width + j];
+        }
+    }
+    delete[] framebuffer;
+    framebuffer = newBuffer;
+
+    std::swap(height, width);
 }

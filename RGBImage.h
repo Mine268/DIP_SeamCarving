@@ -54,6 +54,14 @@ private:
     std::size_t getOffset(const PixelPos& pos) const;
 
     /**
+     * @brief Get the offset of pixel in the "framebuffer".
+     * @param i Row index.
+     * @param j Column index.
+     * @return The offset in the "framebuffer".
+     */
+    std::size_t getOffset(std::size_t i, std::size_t j) const;
+
+    /**
      * @brief Delete the given seam-path, shifting all the pixels right of it left.
      * @param seamPath Seam path.
      */
@@ -64,6 +72,19 @@ private:
      * @param seamPath Seam path.
      */
     void collapseHorizontalSeam(const Seam_Path & seamPath);
+
+    /**
+     * @brief Repeat the given seam-path, shifting all the pixels right of it right.
+     * @param seamPath Seam path.
+     */
+    void repeatVerticalSeam(const std::vector<Seam_Path> & seamPath);
+
+    /**
+     * @brief Repeat the given seam-path, shifting all the pixels down of it down. Implementing by transpose, so
+     * "seamPath" is non-constant. Space cost is high for convenience of lower coding complexity. (It fucks!)
+     * @param seamPath Seam path.
+     */
+    void repeatHorizontalSeam(std::vector<Seam_Path> & seamPath);
 
     /**
      * @brief Comb through the image to find a minimum energy path that has no same pixel as the paths in "ex", called
@@ -125,6 +146,11 @@ public:
       * @return Found paths.
       */
      std::vector<Seam_Path> combHorizontal(std::size_t capacity);
+
+     /**
+      * @brief Transpose the image.
+      */
+     void transpose();
 
      /**
       * @brief Implementing seam-carving algorithm to rescale the image to given aspect ratio.
