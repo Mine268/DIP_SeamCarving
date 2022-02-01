@@ -102,6 +102,13 @@ private:
      */
     Seam_Path combHorizontal_exclusive(const std::vector<Seam_Path> &ex);
 
+    /**
+     * @brief Rescale to (h,w) where h is smaller than "height" and w is smaller than "width".
+     * @param h New height.
+     * @param w New width.
+     */
+    void rescale_scaleDown(std::size_t h, std::size_t w);
+
 public:
     std::size_t height{0}, width{0}, channel{0}; // height & width of the image.
     RGBPixel *framebuffer; // Buffer that stored the image in RGB format
@@ -148,7 +155,7 @@ public:
      std::vector<Seam_Path> combHorizontal(std::size_t capacity);
 
      /**
-      * @brief Transpose the image.
+      * @brief Transpose the image. This function is of high space complexity and should be used carefully!
       */
      void transpose();
 

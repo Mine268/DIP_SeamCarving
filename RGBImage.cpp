@@ -196,7 +196,20 @@ std::size_t RGBImage::getOffset(std::size_t i, std::size_t j) const {
 }
 
 void RGBImage::rescale(std::size_t newHeight, std::size_t newWidth) {
-    // TODO
+    if (newHeight < height && newHeight < width) {
+        rescale_scaleDown(newHeight, newWidth);
+    } else {
+        /*
+        TODO: In this case, at least one dimension of the image will be enlarged and two specified cases are as
+            1. Shrink one dimension and enlarge another one. In this case, enlargement is applied first then the
+                shrinking will be applied with one seam each iteration for targeted times.
+            2. Enlarge both two dimension. Row first, then the column.
+         */
+    }
+}
+
+void RGBImage::rescale_scaleDown(std::size_t h, std::size_t w) {
+    // TODO: Do dynamic programming here.
 }
 
 // The following two functions both run with the complexity of O(mn), where "m" and "n" is the height and width of the
