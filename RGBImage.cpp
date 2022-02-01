@@ -74,7 +74,25 @@ float RGBImage::evaluateEnergyAt(std::size_t i, std::size_t j) {
     return std::abs(deltaI - curr) + std::abs(deltaJ - curr);
 }
 
-Seam_Path RGBImage::combVertical() {
+std::vector<Seam_Path> RGBImage::combVertical(std::size_t capacity) {
+    std::vector<Seam_Path> ret{};
+    for (std::size_t k = 0; k < capacity; ++k) {
+        auto path = combVertical_exclusive(ret);
+        ret.push_back(path);
+    }
+    return ret;
+}
+
+Seam_Path RGBImage::combVertical_exclusive(const std::vector<Seam_Path> &ex) {
+    // Check if position (i,j) collide with the paths in ex
+    static auto checker = [&] (std::size_t vi, std::size_t vj) -> bool {
+        for (auto path : ex) {
+            // Pixel in "path.path" are of the order of descending of i-index.
+            if (path.path[height - vi - 1].j == vj)
+                return true;
+        }
+        return false;
+    };
     // DP: Initialize the starting state
     for (std::size_t j = 0; j < width; ++j) {
         atEnergyMap(0, j).ver = evaluateEnergyAt(0, j);
@@ -82,10 +100,14 @@ Seam_Path RGBImage::combVertical() {
     // DP: Iterate through the energy map
     for (std::size_t i = 1; i < height; ++i) {
         for (std::size_t j = 0; j < width; ++j) {
+            if (checker(i, j)) { // Check colliding
+                continue;
+            }
             float tmp_min = FLT_MAX;
             std::size_t tmp_prev = -1;
             for (int d = -1; d <= 1; ++d) {
                 if (static_cast<int>(j) + d >= 0 && static_cast<int>(j) + d < width
+                    && !checker(i - 1, j + d)
                     && tmp_min > evaluateEnergyAt(i, j) + atEnergyMap(i - 1, j + d).ver) {
                     tmp_min = evaluateEnergyAt(i, j) + atEnergyMap(i - 1, j + d).ver;
                     tmp_prev = j + d;
@@ -95,12 +117,11 @@ Seam_Path RGBImage::combVertical() {
             atEnergyMap(i, j).prev_j = tmp_prev;
         }
     }
-    // DP: Backwards search to construct the optimal path
     float goal_path_energy = FLT_MAX;
     std::size_t goal_path_j = -1;
     Seam_Path ret{};
     for (std::size_t j = 0; j < width; ++j) {
-        if (atEnergyMap(height - 1, j).ver < goal_path_energy) {
+        if (!checker(height - 1, j) && atEnergyMap(height - 1, j).ver < goal_path_energy) {
             goal_path_energy = atEnergyMap(height - 1, j).ver;
             goal_path_j = j;
         }
@@ -113,16 +134,36 @@ Seam_Path RGBImage::combVertical() {
     return ret;
 }
 
-Seam_Path RGBImage::combHorizontal() {
+std::vector<Seam_Path> RGBImage::combHorizontal(std::size_t capacity) {
+    std::vector<Seam_Path> ret{};
+    for (std::size_t k = 0; k < capacity; ++k) {
+        auto path = combHorizontal_exclusive(ret);
+        ret.push_back(path);
+    }
+    return ret;
+}
+
+Seam_Path RGBImage::combHorizontal_exclusive(const std::vector<Seam_Path> &ex) {
+    static auto checker = [&] (std::size_t vi, std::size_t vj) -> bool {
+        for (auto path : ex) {
+            if (path.path[width - vj - 1].i == vi)
+                return true;
+        }
+        return false;
+    };
     for (std::size_t i = 0; i < height; ++i) {
         atEnergyMap(i, 0).hor = evaluateEnergyAt(i, 0);
     }
     for (std::size_t j = 1; j < width; ++j) {
         for (std::size_t i = 0; i < height; ++i) {
+            if (checker(i, j)) {
+                continue;
+            }
             float tmp_min = FLT_MAX;
             std::size_t tmp_prev = -1;
             for (int d = -1; d <= 1; ++d) {
                 if (static_cast<int>(i) + d >= 0 && static_cast<int>(i) + d < height
+                    && !checker(i + d, j - 1)
                     && tmp_min > evaluateEnergyAt(i, j) + atEnergyMap(i + d, j - 1).hor) {
                     tmp_min = evaluateEnergyAt(i, j) + atEnergyMap(i + d, j - 1).hor;
                     tmp_prev = i + d;
@@ -136,7 +177,7 @@ Seam_Path RGBImage::combHorizontal() {
     std::size_t goal_path_i = -1;
     Seam_Path ret{};
     for (std::size_t i = 0; i < height; ++i) {
-        if (atEnergyMap(i, width - 1).hor < goal_path_energy) {
+        if (!checker(i, width - 1) && atEnergyMap(i, width - 1).hor < goal_path_energy) {
             goal_path_energy = atEnergyMap(i, width - 1).hor;
             goal_path_i = i;
         }

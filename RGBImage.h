@@ -65,6 +65,22 @@ private:
      */
     void collapseHorizontalSeam(const Seam_Path & seamPath);
 
+    /**
+     * @brief Comb through the image to find a minimum energy path that has no same pixel as the paths in "ex", called
+     * exclusive path set.
+     * @param ex Exclusive path set.
+     * @return The path.
+     */
+    Seam_Path combVertical_exclusive(const std::vector<Seam_Path> &ex);
+
+    /**
+     * @brief Comb through the image to find a minimum energy path that has no same pixel as the paths in "ex", called
+     * exclusive path set.
+     * @param ex Exclusive path set.
+     * @return The path.
+     */
+    Seam_Path combHorizontal_exclusive(const std::vector<Seam_Path> &ex);
+
 public:
     std::size_t height{0}, width{0}, channel{0}; // height & width of the image.
     RGBPixel *framebuffer; // Buffer that stored the image in RGB format
@@ -98,15 +114,17 @@ public:
 
      /**
       * @brief To find a vertical path with minimum energy cost.
-      * @return Found path.
+      * @param capacity Most "capacity" minimum path.
+      * @return Found paths.
       */
-     Seam_Path combVertical();
+     std::vector<Seam_Path> combVertical(std::size_t capacity);
 
      /**
       * @brief To find a horizontal path with minimum energy cost.
-      * @return Found path.
+      * @param capacity Most "capacity" minimum path.
+      * @return Found paths.
       */
-     Seam_Path combHorizontal();
+     std::vector<Seam_Path> combHorizontal(std::size_t capacity);
 
      /**
       * @brief Implementing seam-carving algorithm to rescale the image to given aspect ratio.

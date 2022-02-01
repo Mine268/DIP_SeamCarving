@@ -9,9 +9,11 @@
 int main() {
     RGBImage ri("../pictures/sample5.png");
 
-    for (int i = 0; i < 100; i++) {
-        auto path = ri.combVertical();
-        ri.collapseVerticalSeam(path);
+    auto paths = ri.combHorizontal(3);
+    for (const auto& path : paths) {
+        for (auto pixel : path.path) {
+            ri.at(pixel.i, pixel.j) = {255, 0, 0, 255};
+        }
     }
 
     ri.write("../outputs/output5.png");
