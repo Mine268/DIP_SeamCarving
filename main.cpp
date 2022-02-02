@@ -2,18 +2,23 @@
 // Created by mine268 on 2022/1/29.
 //
 
-#define SEAM_CARVING_DEBUG
-
 #include "RGBImage.h"
 #include <iostream>
 
-int main() {
-    RGBImage ri("../pictures/sample5.png");
+int main(int argc, const char **argv) {
 
-    // width: 311, height: 207
-    ri.rescale(200, 300);
+    if (argc != 5) {
+        std::cout << "Usage: source_path height width output_path" << std::endl << "Output format: png";
+    } else {
+        auto src = std::string(argv[1]);
+        auto dest = std::string(argv[4]);
+        auto height = std::strtoull(argv[2], nullptr, 10);
+        auto width = std::strtoull(argv[3], nullptr, 10);
 
-    ri.write("../outputs/output5.png");
+        RGBImage ri(src);
+        ri.rescale(height, width);
+        ri.write(dest);
+    }
 
     return 0;
 }

@@ -231,6 +231,7 @@ std::size_t RGBImage::getOffset(std::size_t i, std::size_t j) const {
 void RGBImage::rescale(std::size_t newHeight, std::size_t newWidth) {
     auto heightShrinkFlag = newHeight < height, widthShrinkFlag = newWidth < width;
     if (heightShrinkFlag && widthShrinkFlag) {
+        std::cout << "Scaling down will take much more time, here is its progress." << std::endl;
         rescale_scaleDown(newHeight, newWidth);
     } else if (heightShrinkFlag) {
         // Case 1.1
