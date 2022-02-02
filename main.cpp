@@ -9,15 +9,9 @@
 int main() {
     RGBImage ri("../pictures/sample5.png");
 
-    auto paths = ri.combVertical(3);
-    for (const auto& path : paths) {
-        for (auto pixel : path.path) {
-            ri.at(pixel.i, pixel.j) = {255, 0, 0, 255};
-        }
-    }
-    ri.repeatVerticalSeam(paths);
+    ri.rescale(100, 200);
 
-    ri.write("../outputs/output5.png");
+    ri.write("../outputs/output5_1.png");
 
     return 0;
 }

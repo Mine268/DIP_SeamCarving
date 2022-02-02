@@ -116,6 +116,8 @@ public:
     RGBImage() = delete;
     explicit RGBImage(std::size_t h, std::size_t w);
     explicit RGBImage(const std::string & path);
+    RGBImage(const RGBImage & origin);
+    RGBImage & operator=(const RGBImage & origin);
     ~RGBImage();
 
     /**

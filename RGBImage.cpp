@@ -35,6 +35,33 @@ RGBImage::RGBImage(const std::string & path) {
     stbi_image_free(raw_data);
 }
 
+RGBImage::RGBImage(const RGBImage &origin) :
+height(origin.height), width(origin.width), channel(origin.channel),
+framebuffer(new RGBPixel[origin.height * origin.width]),
+energyMap(new ST_TWO_FLOAT[origin.height * origin.width]) {
+    for (std::size_t i = 0; i < height * width; ++i) {
+        framebuffer[i] = origin.framebuffer[i];
+    }
+}
+
+RGBImage & RGBImage::operator=(const RGBImage &origin) {
+    // self-assignment process
+    if (this == &origin) return *this;
+    if (height != origin.height || width != origin.width) {
+        delete[] framebuffer;
+        delete[] energyMap;
+        framebuffer = new RGBPixel[origin.height * origin.width];
+        energyMap = new ST_TWO_FLOAT[origin.height * origin.width];
+        height = origin.height;
+        width = origin.width;
+    }
+    channel = origin.channel;
+    for (std::size_t i = 0; i < height * width; ++i) {
+        framebuffer[i] = origin.framebuffer[i];
+    }
+    return *this;
+}
+
 RGBImage::~RGBImage() {
     delete[] framebuffer;
     delete[] energyMap;
@@ -86,7 +113,7 @@ std::vector<Seam_Path> RGBImage::combVertical(std::size_t capacity) {
 
 Seam_Path RGBImage::combVertical_exclusive(const std::vector<Seam_Path> &ex) {
     // Check if position (i,j) collide with the paths in ex
-    static auto checker = [&] (std::size_t vi, std::size_t vj) -> bool {
+    auto checker = [&] (std::size_t vi, std::size_t vj) -> bool {
         // Pixel in "path.path" are of the order of descending of i-index.
         return std::any_of(ex.begin(), ex.end(), [&] (const auto & ele) {
             return ele.path[height - vi - 1].j == vj;
@@ -143,10 +170,11 @@ std::vector<Seam_Path> RGBImage::combHorizontal(std::size_t capacity) {
 }
 
 Seam_Path RGBImage::combHorizontal_exclusive(const std::vector<Seam_Path> &ex) {
-    static auto checker = [&] (std::size_t vi, std::size_t vj) -> bool {
+    auto checker = [&] (std::size_t vi, std::size_t vj) -> bool {
         return std::any_of(ex.begin(), ex.end(), [&] (const auto &ele) {
             return ele.path[width - vj - 1].i == vi;
         });
+        return false;
     };
     for (std::size_t i = 0; i < height; ++i) {
         atEnergyMap(i, 0).hor = evaluateEnergyAt(i, 0);
@@ -196,7 +224,7 @@ std::size_t RGBImage::getOffset(std::size_t i, std::size_t j) const {
 }
 
 void RGBImage::rescale(std::size_t newHeight, std::size_t newWidth) {
-    if (newHeight < height && newHeight < width) {
+    if (newHeight < height && newWidth < width) {
         rescale_scaleDown(newHeight, newWidth);
     } else {
         /*
@@ -209,7 +237,41 @@ void RGBImage::rescale(std::size_t newHeight, std::size_t newWidth) {
 }
 
 void RGBImage::rescale_scaleDown(std::size_t h, std::size_t w) {
-    // TODO: Do dynamic programming here.
+    auto heightShrink = height - h, widthShrink = width - w;
+    std::vector<std::pair<float, RGBImage>> curr_state, next_state;
+    // DP: buildup the initial state
+    curr_state.emplace_back(0.f, *this);
+    for (std::size_t k = 1; k < widthShrink; ++k) {
+        std::cout << "Processing: " << k << '/' << heightShrink * widthShrink - 1 << std::endl;
+        curr_state.push_back(curr_state.at(k - 1));
+        auto path = curr_state.at(k).second.combVertical(1).at(0);
+        curr_state.at(k).first = path.energy;
+        curr_state.at(k).second
+            .collapseVerticalSeam(path);
+    }
+    // DP: Transmission
+    for (std::size_t t = 1; t < heightShrink; ++t) {
+        next_state.clear();
+        next_state.push_back(curr_state.at(0));
+        auto tmp_path = next_state.at(0).second.combHorizontal(1).at(0);
+        next_state.at(0).first = tmp_path.energy + curr_state.at(0).first;
+        next_state.at(0).second.collapseHorizontalSeam(tmp_path);
+        for (std::size_t k = 1; k < widthShrink; ++k) {
+            std::cout << "Processing: " << t * widthShrink + k << '/' << heightShrink * widthShrink - 1 << std::endl;
+            auto pathHor = curr_state.at(k).second.combHorizontal(1).at(0);
+            auto pathVer = next_state.at(k - 1).second.combVertical(1).at(0);
+            if (pathHor.energy + curr_state.at(k).first < pathVer.energy + next_state.at(k - 1).first) {
+                next_state.emplace_back(pathHor.energy + curr_state.at(k).first, curr_state.at(k).second);
+                next_state.at(k).second.collapseHorizontalSeam(pathHor);
+            } else {
+                next_state.emplace_back(pathVer.energy + next_state.at(k - 1).first, next_state.at(k - 1).second);
+                next_state.at(k).second.collapseVerticalSeam(pathVer);
+            }
+        }
+        curr_state.clear();
+        std::swap(curr_state, next_state);
+    }
+    *this = curr_state.at(widthShrink - 1).second;
 }
 
 // The following two functions both run with the complexity of O(mn), where "m" and "n" is the height and width of the
@@ -249,7 +311,7 @@ void RGBImage::collapseHorizontalSeam(const Seam_Path& seamPath) {
 
 void RGBImage::repeatVerticalSeam(const std::vector<Seam_Path> &seamPath) {
     // Check if position (i,j) collide with the paths in seamPath
-    static auto checker = [&] (std::size_t vi, std::size_t vj) -> bool {
+    auto checker = [&] (std::size_t vi, std::size_t vj) -> bool {
         return std::any_of(seamPath.begin(), seamPath.end(), [&] (const auto &ele) {
             return ele.path[height - vi - 1].j == vj;
         });

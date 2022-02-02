@@ -18,6 +18,15 @@ struct RGBPixel {
                 0.587f * static_cast<float>(green) +
                 0.114f * static_cast<float>(blue)) / 255.f;
     }
+
+    RGBPixel & operator=(const RGBPixel & origin) {
+        if (this == &origin) return *this;
+        red = origin.red;
+        green = origin.green;
+        blue = origin.blue;
+        alpha = origin.alpha;
+        return *this;
+    }
 };
 
 struct PixelPos {
