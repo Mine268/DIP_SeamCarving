@@ -19,7 +19,7 @@ struct RGBPixel {
                 0.114f * static_cast<float>(blue)) / 255.f;
     }
 
-    RGBPixel & operator=(const RGBPixel & origin) {
+    RGBPixel &operator=(const RGBPixel &origin) {
         if (this == &origin) return *this;
         red = origin.red;
         green = origin.green;

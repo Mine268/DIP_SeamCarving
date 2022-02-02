@@ -3,6 +3,7 @@
 //
 
 #define SEAM_CARVING_DEBUG
+
 #include "RGBImage.h"
 #include <iostream>
 

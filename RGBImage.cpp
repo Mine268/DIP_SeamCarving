@@ -3,18 +3,22 @@
 //
 
 #include "RGBImage.h"
+
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+
 #include "stb/stb_image_write.h"
+
 #define STB_IMAGE_IMPLEMENTATION
+
 #include "stb/stb_image.h"
 #include <iostream>
 #include <cfloat>
 #include <algorithm>
 
 RGBImage::RGBImage(std::size_t h, std::size_t w) :
-height(h), width(w), channel(0), framebuffer(new RGBPixel[h * w]), energyMap(new ST_TWO_FLOAT[h * w]) {}
+        height(h), width(w), channel(0), framebuffer(new RGBPixel[h * w]), energyMap(new ST_TWO_FLOAT[h * w]) {}
 
-RGBImage::RGBImage(const std::string & path) {
+RGBImage::RGBImage(const std::string &path) {
     int w, h, t_channel;
     auto raw_data = stbi_load(path.c_str(), &w, &h, &t_channel, 0);
     if (raw_data == nullptr) {
@@ -36,15 +40,15 @@ RGBImage::RGBImage(const std::string & path) {
 }
 
 RGBImage::RGBImage(const RGBImage &origin) :
-height(origin.height), width(origin.width), channel(origin.channel),
-framebuffer(new RGBPixel[origin.height * origin.width]),
-energyMap(new ST_TWO_FLOAT[origin.height * origin.width]) {
+        height(origin.height), width(origin.width), channel(origin.channel),
+        framebuffer(new RGBPixel[origin.height * origin.width]),
+        energyMap(new ST_TWO_FLOAT[origin.height * origin.width]) {
     for (std::size_t i = 0; i < height * width; ++i) {
         framebuffer[i] = origin.framebuffer[i];
     }
 }
 
-RGBImage & RGBImage::operator=(const RGBImage &origin) {
+RGBImage &RGBImage::operator=(const RGBImage &origin) {
     // self-assignment process
     if (this == &origin) return *this;
     if (height != origin.height || width != origin.width) {
@@ -70,7 +74,7 @@ RGBImage::~RGBImage() {
 }
 
 void RGBImage::write(const std::string &path) {
-    auto * raw_data = new uchar[width * height * channel];
+    auto *raw_data = new uchar[width * height * channel];
     for (std::size_t i = 0; i < width * height; ++i) {
         raw_data[channel * i + 0] = framebuffer[i].red;
         raw_data[channel * i + 1] = framebuffer[i].green;
@@ -85,11 +89,11 @@ void RGBImage::write(const std::string &path) {
     delete[] raw_data;
 }
 
-ST_TWO_FLOAT & RGBImage::atEnergyMap(std::size_t i, std::size_t j) const {
+ST_TWO_FLOAT &RGBImage::atEnergyMap(std::size_t i, std::size_t j) const {
     return energyMap[i * width + j];
 }
 
-RGBPixel & RGBImage::at(std::size_t i, std::size_t j) const {
+RGBPixel &RGBImage::at(std::size_t i, std::size_t j) const {
     return framebuffer[i * width + j];
 }
 
@@ -113,9 +117,9 @@ std::vector<Seam_Path> RGBImage::combVertical(std::size_t capacity) {
 
 Seam_Path RGBImage::combVertical_exclusive(const std::vector<Seam_Path> &ex) {
     // Check if position (i,j) collide with the paths in ex
-    auto checker = [&] (std::size_t vi, std::size_t vj) -> bool {
+    auto checker = [&](std::size_t vi, std::size_t vj) -> bool {
         // Pixel in "path.path" are of the order of descending of i-index.
-        return std::any_of(ex.begin(), ex.end(), [&] (const auto & ele) {
+        return std::any_of(ex.begin(), ex.end(), [&](const auto &ele) {
             return ele.path[height - vi - 1].j == vj;
         });
     };
@@ -170,8 +174,8 @@ std::vector<Seam_Path> RGBImage::combHorizontal(std::size_t capacity) {
 }
 
 Seam_Path RGBImage::combHorizontal_exclusive(const std::vector<Seam_Path> &ex) {
-    auto checker = [&] (std::size_t vi, std::size_t vj) -> bool {
-        return std::any_of(ex.begin(), ex.end(), [&] (const auto &ele) {
+    auto checker = [&](std::size_t vi, std::size_t vj) -> bool {
+        return std::any_of(ex.begin(), ex.end(), [&](const auto &ele) {
             return ele.path[width - vj - 1].i == vi;
         });
         return false;
@@ -215,7 +219,7 @@ Seam_Path RGBImage::combHorizontal_exclusive(const std::vector<Seam_Path> &ex) {
     return ret;
 }
 
-std::size_t RGBImage::getOffset(const PixelPos& pos) const {
+std::size_t RGBImage::getOffset(const PixelPos &pos) const {
     return pos.i * width + pos.j;
 }
 
@@ -224,15 +228,19 @@ std::size_t RGBImage::getOffset(std::size_t i, std::size_t j) const {
 }
 
 void RGBImage::rescale(std::size_t newHeight, std::size_t newWidth) {
-    if (newHeight < height && newWidth < width) {
+    /*
+    TODO: In this case, at least one dimension of the image will be enlarged and two specified cases are as
+        1. Shrink one dimension and enlarge another one. In this case, enlargement is applied first then the
+            shrinking will be applied with one seam each iteration for targeted times.
+        2. Enlarge both two dimension. Row first, then the column.
+     */
+    auto heightShrinkFlag = newHeight < height, widthShrinkFlag = newWidth < width;
+    if (heightShrinkFlag && widthShrinkFlag) {
         rescale_scaleDown(newHeight, newWidth);
+    } else if (heightShrinkFlag ^ widthShrinkFlag) {
+        // Case 1
     } else {
-        /*
-        TODO: In this case, at least one dimension of the image will be enlarged and two specified cases are as
-            1. Shrink one dimension and enlarge another one. In this case, enlargement is applied first then the
-                shrinking will be applied with one seam each iteration for targeted times.
-            2. Enlarge both two dimension. Row first, then the column.
-         */
+        // Case 2
     }
 }
 
@@ -247,7 +255,7 @@ void RGBImage::rescale_scaleDown(std::size_t h, std::size_t w) {
         auto path = curr_state.at(k).second.combVertical(1).at(0);
         curr_state.at(k).first = path.energy;
         curr_state.at(k).second
-            .collapseVerticalSeam(path);
+                .collapseVerticalSeam(path);
     }
     // DP: Transmission
     for (std::size_t t = 1; t < heightShrink; ++t) {
@@ -277,7 +285,7 @@ void RGBImage::rescale_scaleDown(std::size_t h, std::size_t w) {
 // The following two functions both run with the complexity of O(mn), where "m" and "n" is the height and width of the
 // image.
 
-void RGBImage::collapseVerticalSeam(const Seam_Path& seamPath) {
+void RGBImage::collapseVerticalSeam(const Seam_Path &seamPath) {
     // "seamPath" should be a vertical seam from top to bottom.
     /* Since "seamPath" vector is lined in the descent order of member ".i", so we can iterate through "seamPath" from
      * tail to head for efficient move.
@@ -292,7 +300,7 @@ void RGBImage::collapseVerticalSeam(const Seam_Path& seamPath) {
     --width;
 }
 
-void RGBImage::collapseHorizontalSeam(const Seam_Path& seamPath) {
+void RGBImage::collapseHorizontalSeam(const Seam_Path &seamPath) {
     // "seamPath" should be a vertical seam from left to right.
     /* Because the image is stored left to right then top to down, so the strategy applied to collapse the vertical seam
      * doesn't work in this case. We can only iterate through each pixel in the image with the same order and process
@@ -311,8 +319,8 @@ void RGBImage::collapseHorizontalSeam(const Seam_Path& seamPath) {
 
 void RGBImage::repeatVerticalSeam(const std::vector<Seam_Path> &seamPath) {
     // Check if position (i,j) collide with the paths in seamPath
-    auto checker = [&] (std::size_t vi, std::size_t vj) -> bool {
-        return std::any_of(seamPath.begin(), seamPath.end(), [&] (const auto &ele) {
+    auto checker = [&](std::size_t vi, std::size_t vj) -> bool {
+        return std::any_of(seamPath.begin(), seamPath.end(), [&](const auto &ele) {
             return ele.path[height - vi - 1].j == vj;
         });
     };
@@ -343,8 +351,8 @@ void RGBImage::repeatVerticalSeam(const std::vector<Seam_Path> &seamPath) {
 
 void RGBImage::repeatHorizontalSeam(std::vector<Seam_Path> &seamPath) {
     transpose();
-    for (auto& path : seamPath) {
-        for (auto& pixel : path.path) {
+    for (auto &path: seamPath) {
+        for (auto &pixel: path.path) {
             std::swap(pixel.i, pixel.j);
         }
     }
