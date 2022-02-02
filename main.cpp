@@ -10,9 +10,10 @@
 int main() {
     RGBImage ri("../pictures/sample5.png");
 
-    ri.rescale(100, 200);
+    // width: 311, height: 207
+    ri.rescale(200, 300);
 
-    ri.write("../outputs/output5_1.png");
+    ri.write("../outputs/output5.png");
 
     return 0;
 }

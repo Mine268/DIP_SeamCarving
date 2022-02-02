@@ -181,6 +181,7 @@ Seam_Path RGBImage::combHorizontal_exclusive(const std::vector<Seam_Path> &ex) {
         return false;
     };
     for (std::size_t i = 0; i < height; ++i) {
+        auto &ttt = atEnergyMap(i, 0);
         atEnergyMap(i, 0).hor = evaluateEnergyAt(i, 0);
     }
     for (std::size_t j = 1; j < width; ++j) {
@@ -228,19 +229,29 @@ std::size_t RGBImage::getOffset(std::size_t i, std::size_t j) const {
 }
 
 void RGBImage::rescale(std::size_t newHeight, std::size_t newWidth) {
-    /*
-    TODO: In this case, at least one dimension of the image will be enlarged and two specified cases are as
-        1. Shrink one dimension and enlarge another one. In this case, enlargement is applied first then the
-            shrinking will be applied with one seam each iteration for targeted times.
-        2. Enlarge both two dimension. Row first, then the column.
-     */
     auto heightShrinkFlag = newHeight < height, widthShrinkFlag = newWidth < width;
     if (heightShrinkFlag && widthShrinkFlag) {
         rescale_scaleDown(newHeight, newWidth);
-    } else if (heightShrinkFlag ^ widthShrinkFlag) {
-        // Case 1
+    } else if (heightShrinkFlag) {
+        // Case 1.1
+        for (std::size_t k = 0; k < height - newHeight; ++k) {
+            collapseHorizontalSeam(combHorizontal(1).at(0));
+        }
+        auto pathVer = combVertical(newWidth - width);
+        repeatVerticalSeam(pathVer);
+    } else if (widthShrinkFlag) {
+        // Case 1.2
+        for (std::size_t k = 0; k < width - newWidth; ++k) {
+            collapseVerticalSeam(combVertical(1).at(0));
+        }
+        auto pathHor = combHorizontal(newHeight - height);
+        repeatHorizontalSeam(pathHor);
     } else {
         // Case 2
+        auto pathVer = combVertical(newWidth - width);
+        repeatVerticalSeam(pathVer);
+        auto pathHor = combHorizontal(newHeight - height);
+        repeatHorizontalSeam(pathHor);
     }
 }
 
@@ -343,7 +354,9 @@ void RGBImage::repeatVerticalSeam(const std::vector<Seam_Path> &seamPath) {
         }
     }
     delete[] framebuffer;
+    delete[] energyMap;
     framebuffer = newBuffer;
+    energyMap = new ST_TWO_FLOAT[newHeight * newWidth];
 
     height = newHeight;
     width = newWidth;
