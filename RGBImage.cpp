@@ -14,6 +14,7 @@
 #include <iostream>
 #include <cfloat>
 #include <algorithm>
+#include <numeric>
 
 RGBImage::RGBImage(std::size_t h, std::size_t w) :
         height(h), width(w), channel(0), framebuffer(new RGBPixel[h * w]), energyMap(new ST_TWO_FLOAT[h * w]) {}
@@ -42,7 +43,8 @@ RGBImage::RGBImage(const std::string &path) {
 RGBImage::RGBImage(const RGBImage &origin) :
         height(origin.height), width(origin.width), channel(origin.channel),
         framebuffer(new RGBPixel[origin.height * origin.width]),
-        energyMap(new ST_TWO_FLOAT[origin.height * origin.width]) {
+        energyMap(new ST_TWO_FLOAT[origin.height * origin.width]),
+        concentration(origin.concentration) {
     for (std::size_t i = 0; i < height * width; ++i) {
         framebuffer[i] = origin.framebuffer[i];
     }
@@ -60,6 +62,7 @@ RGBImage &RGBImage::operator=(const RGBImage &origin) {
         width = origin.width;
     }
     channel = origin.channel;
+    concentration = origin.concentration;
     for (std::size_t i = 0; i < height * width; ++i) {
         framebuffer[i] = origin.framebuffer[i];
     }
@@ -97,13 +100,17 @@ RGBPixel &RGBImage::at(std::size_t i, std::size_t j) const {
     return framebuffer[i * width + j];
 }
 
-float RGBImage::evaluateEnergyAt(std::size_t i, std::size_t j) {
+float RGBImage::evaluateEnergyAt(std::size_t i, std::size_t j) const {
     // Energy form "e1" is implemented here.
     // Heuristically, we use grey channel to evaluate the energy
     auto curr = at(i, j).grey();
     auto deltaI = (i == height - 1 ? at(0, j) : at(i + 1, j)).grey();
     auto deltaJ = (j == width - 1 ? at(i, 0) : at(i, j + 1)).grey();
-    return std::abs(deltaI - curr) + std::abs(deltaJ - curr);
+    auto gamma = std::accumulate(concentration.begin(), concentration.end(), 1.f,
+                                 [&](const auto &c1, const auto &c2) -> float {
+                                     return c1 * evaluateGamma(i, j, c2);
+                                 });
+    return gamma * (std::abs(deltaI - curr) + std::abs(deltaJ - curr));
 }
 
 std::vector<Seam_Path> RGBImage::combVertical(std::size_t capacity) {
@@ -262,12 +269,13 @@ void RGBImage::rescale_scaleDown(std::size_t h, std::size_t w) {
     // DP: buildup the initial state
     curr_state.emplace_back(0.f, *this);
     for (std::size_t k = 1; k < widthShrink; ++k) {
-        std::cout << "Processing: " << k << '/' << heightShrink * widthShrink - 1 << std::endl;
+        std::cout << "Processing: " << k << '/' << heightShrink * widthShrink - 1;
         curr_state.push_back(curr_state.at(k - 1));
         auto path = curr_state.at(k).second.combVertical(1).at(0);
         curr_state.at(k).first = path.energy;
         curr_state.at(k).second
                 .collapseVerticalSeam(path);
+        std::cout << ", " << path.energy << std::endl;
     }
     // DP: Transmission
     for (std::size_t t = 1; t < heightShrink; ++t) {
@@ -277,9 +285,10 @@ void RGBImage::rescale_scaleDown(std::size_t h, std::size_t w) {
         next_state.at(0).first = tmp_path.energy + curr_state.at(0).first;
         next_state.at(0).second.collapseHorizontalSeam(tmp_path);
         for (std::size_t k = 1; k < widthShrink; ++k) {
-            std::cout << "Processing: " << t * widthShrink + k << '/' << heightShrink * widthShrink - 1 << std::endl;
+            std::cout << "Processing: " << t * widthShrink + k << '/' << heightShrink * widthShrink - 1;
             auto pathHor = curr_state.at(k).second.combHorizontal(1).at(0);
             auto pathVer = next_state.at(k - 1).second.combVertical(1).at(0);
+            auto min_energy = std::min(pathHor.energy, pathVer.energy);
             if (pathHor.energy + curr_state.at(k).first < pathVer.energy + next_state.at(k - 1).first) {
                 next_state.emplace_back(pathHor.energy + curr_state.at(k).first, curr_state.at(k).second);
                 next_state.at(k).second.collapseHorizontalSeam(pathHor);
@@ -287,6 +296,7 @@ void RGBImage::rescale_scaleDown(std::size_t h, std::size_t w) {
                 next_state.emplace_back(pathVer.energy + next_state.at(k - 1).first, next_state.at(k - 1).second);
                 next_state.at(k).second.collapseVerticalSeam(pathVer);
             }
+            std::cout << ", " << min_energy << std::endl;
         }
         curr_state.clear();
         std::swap(curr_state, next_state);
@@ -309,6 +319,12 @@ void RGBImage::collapseVerticalSeam(const Seam_Path &seamPath) {
             framebuffer[k - (height - i)] = framebuffer[k];
         }
     }
+    // Update the concentrations
+    for (auto &cons: concentration) {
+        if (seamPath.path[height - cons.pixelPos.i - 1].j <= cons.pixelPos.j) {
+            --cons.pixelPos.j;
+        }
+    }
     --width;
 }
 
@@ -326,6 +342,12 @@ void RGBImage::collapseHorizontalSeam(const Seam_Path &seamPath) {
             }
         }
     }
+    // Update the concentrations
+    for (auto &cons: concentration) {
+        if (seamPath.path[width - cons.pixelPos.j - 1].i <= cons.pixelPos.i) {
+            --cons.pixelPos.i;
+        }
+    }
     --height;
 }
 
@@ -339,7 +361,6 @@ void RGBImage::repeatVerticalSeam(const std::vector<Seam_Path> &seamPath) {
     // Reallocate the space for enlarge
     auto newHeight = height, newWidth = seamPath.size() + width;
     auto newBuffer = new RGBPixel[newHeight * newWidth];
-
     // The offset each pixel of each row should move. At the end of each row, this value must be seamPath.size().
     std::size_t pixelOffset = -1;
     for (std::size_t vi = 0; vi < height; ++vi) {
@@ -358,6 +379,14 @@ void RGBImage::repeatVerticalSeam(const std::vector<Seam_Path> &seamPath) {
     delete[] energyMap;
     framebuffer = newBuffer;
     energyMap = new ST_TWO_FLOAT[newHeight * newWidth];
+    // Update concentrations
+    for (auto &path: seamPath) {
+        for (auto &cons: concentration) {
+            if (path.path[height - cons.pixelPos.i - 1].j <= cons.pixelPos.j) {
+                ++cons.pixelPos.j;
+            }
+        }
+    }
 
     height = newHeight;
     width = newWidth;
@@ -370,8 +399,19 @@ void RGBImage::repeatHorizontalSeam(std::vector<Seam_Path> &seamPath) {
             std::swap(pixel.i, pixel.j);
         }
     }
+    for (auto &cons: concentration) {
+        std::swap(cons.pixelPos.i, cons.pixelPos.j);
+    }
     repeatVerticalSeam(seamPath);
     transpose();
+    for (auto &path: seamPath) {
+        for (auto &pixel: path.path) {
+            std::swap(pixel.i, pixel.j);
+        }
+    }
+    for (auto &cons: concentration) {
+        std::swap(cons.pixelPos.i, cons.pixelPos.j);
+    }
 }
 
 void RGBImage::transpose() {
@@ -385,4 +425,33 @@ void RGBImage::transpose() {
     framebuffer = newBuffer;
 
     std::swap(height, width);
+}
+
+float RGBImage::evaluateDistanceBetween(const PixelPos &a, const PixelPos &b) {
+    return std::max(std::abs(static_cast<float>(a.i - b.i)), std::abs(static_cast<float>(a.j - b.j)));
+}
+
+float RGBImage::evaluateGamma(const PixelPos &pixelPos, const Concentration &concentration) {
+    return evaluateGamma(pixelPos.i, pixelPos.j, concentration);
+}
+
+float RGBImage::evaluateGamma(std::size_t i, std::size_t j, const Concentration &concentration) {
+    auto distance = std::max(std::abs(static_cast<float>((int) i - (int) concentration.pixelPos.i)),
+                             std::abs(static_cast<float>((int) j - (int) concentration.pixelPos.j)));
+//    auto gamma = std::max(1.f,
+//                          concentration.enhancement *
+//                          (std::exp(-distance) * std::exp(concentration.range) - 1) + 1);
+    auto gamma = distance < concentration.range ? concentration.enhancement : 1.f;
+    return gamma;
+}
+
+void RGBImage::writeEnergyImage(const std::string &path) const {
+    RGBImage ri(*this);
+    for (std::size_t i = 0; i < height; ++i) {
+        for (std::size_t j = 0; j < width; ++j) {
+            auto t = static_cast<uchar>(std::atan(evaluateEnergyAt(i, j) * 2.f) * 2.f / 3.1415f * 255.f);
+            ri.at(i, j) = {t, t, t, 100};
+        }
+    }
+    ri.write(path);
 }

@@ -33,7 +33,7 @@ struct Seam_Path {
  */
 class RGBImage {
 #ifdef SEAM_CARVING_DEBUG
-    friend int main();
+    friend int main(int, const char**);
 #endif
 private:
     ST_TWO_FLOAT *energyMap; // Energy map for convenience of evaluating minimum energy path.
@@ -109,7 +109,33 @@ private:
      */
     void rescale_scaleDown(std::size_t h, std::size_t w);
 
+    /**
+     * @brief Evaluate the distance between point a and b.
+     * @param a Position a.
+     * @param b Position b.
+     * @return The distance.
+     */
+    static float evaluateDistanceBetween(const PixelPos &a, const PixelPos &b);
+
+    /**
+     * @brief Evaluate the gamma term at pixelPos contributed by concentration
+     * @param pixelPos pixPos
+     * @param concentration concentration
+     * @return gamma term.
+     */
+    static float evaluateGamma(const PixelPos &pixelPos, const Concentration &concentration);
+
+    /**
+     * @brief Overloaded function evaluateGamma.
+     * @param i Row index.
+     * @param j Column index.
+     * @param concentration concentration.
+     * @return gamma term.
+     */
+    static float evaluateGamma(std::size_t i, std::size_t j, const Concentration &concentration);
+
 public:
+    std::vector<Concentration> concentration; // Range, Enhancement, Position
     std::size_t height{0}, width{0}, channel{0}; // height & width of the image.
     RGBPixel *framebuffer; // Buffer that stored the image in RGB format
 
@@ -145,7 +171,7 @@ public:
      * @param j Column(Horizontal) index.
      * @return Energy value at point (i,j).
      */
-    virtual float evaluateEnergyAt(std::size_t i, std::size_t j);
+    virtual float evaluateEnergyAt(std::size_t i, std::size_t j) const;
 
     /**
      * @brief To find a vertical path with minimum energy cost.
@@ -172,4 +198,10 @@ public:
      * @param newWidth New width.
      */
     void rescale(std::size_t newHeight, std::size_t newWidth);
+
+    /**
+     * @brief Output the energy image to path.
+     * @param path path.
+     */
+    void writeEnergyImage(const std::string &path) const;
 };

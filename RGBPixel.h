@@ -32,3 +32,8 @@ struct RGBPixel {
 struct PixelPos {
     std::size_t i, j;
 };
+
+struct Concentration {
+    float range, enhancement;
+    PixelPos pixelPos;
+};
